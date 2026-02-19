@@ -1,5 +1,5 @@
-// Generates the analysis path of the MWD algorithm
-// Usage example - $ root -l -q 'plotMWDResults.C("FinalData/DigNoZS.root", "MWDSpectra/ttree", 2000.0, 50, 0.1, 500, 5, 0.5, 0.8, 1.1)'
+// Plots the spectra associated with the MC truth information of the energy depositions inside the HPGe detector
+// Usage example - $ root -l -q 'plotHPGeEDeps.C("FinalData/DigNoZS.root", "MWDSpectra/ttree", 2000.0, 50, 0.1, 500, 5, 0.5, 0.8, 1.1)'
 // Original author - Pawel Plesniak
 
 #include <limits>
@@ -75,7 +75,7 @@ void collectData(const std::string fileName, const std::string treeName, std::ve
 
         // Collect the data
         times.push_back(dataTime);
-        energies.push_back(dataE);
+        energies.push_back(dataE * 1000); // Convert from MeV to keV
     };
     // Check if data has been collected
     if (times.size() == 0 || energies.size() == 0)
@@ -200,6 +200,8 @@ void plot(std::vector<double> times, std::vector<double> energies, std::vector<d
         std::cout << "Negative minimum energy of " << *std::min_element(energies.begin(), energies.end()) << " keV" << std::endl;
         std::cout << "===========================" << std::endl;
     };
+    std::cout << "eMin is " << eMin << " keV, eMax is " << eMax << " keV" << std::endl;
+
     double eRangeFull = eMax - eMin;
     double eRangeRed  = ERed - eMin;
     double e347  = 347,  eRange347  = e347  * signalAcceptance,  eMin347  = e347  - eRange347,   eMax347  = e347  + eRange347;
@@ -288,11 +290,11 @@ void plot(std::vector<double> times, std::vector<double> energies, std::vector<d
             hists[0]->Fill(e);
         if (eMin < e && e < ERed)
             hists[1]->Fill(e);
-        if ((!timeCuts && eMin347 < e  && e < eMax347)  || (timeCuts && tMin347 < t && t < tMax347   && eMin347 < e  && e < eMax347))
+        if ((!timeCuts && eMin347 < e  && e < eMax347)  || (timeCuts && tMin347 < fmod(t, tMod347)   && fmod(t, tMod347) < tMax347   && eMin347 < e  && e < eMax347))
             hists[2]->Fill(e);
-        if ((!timeCuts && eMin844 < e  && e < eMax844)  || (timeCuts && tMin844 < t && t < tMax844   && eMin844 < e  && e < eMax844))
+        if ((!timeCuts && eMin844 < e  && e < eMax844)  || (timeCuts && tMin844 < fmod(t, tMod844)   && fmod(t, tMod844) < tMax844   && eMin844 < e  && e < eMax844))
             hists[3]->Fill(e);
-        if ((!timeCuts && eMin1809 < e && e < eMax1809) || (timeCuts && tMin1809 < t && t < tMax1809 && eMin1809 < e && e < eMax1809))
+        if ((!timeCuts && eMin1809 < e && e < eMax1809) || (timeCuts && tMin1809 < fmod(t, tMod1809) && fmod(t, tMod1809) < tMax1809 && eMin1809 < e && e < eMax1809))
             hists[4]->Fill(e);
     };
 
@@ -390,7 +392,7 @@ void makePlots(std::vector<double> &times, std::vector<double> &energies, double
 };
 
 
-void plotMWDResults_noADCClock(std::string fileName, std::string treeName, double ERed = 2000.0, double EMin = 0.0, const double signalAcceptance = 0.1, double binWidthFull = 500, double binWidthRed = 5, double binWidth347 = 5, double binWidth844 = 5, double binWidth1809 = 10) {
+void plotHPGeEDeps(std::string fileName, std::string treeName, double ERed = 2000.0, double EMin = 0.0, const double signalAcceptance = 0.1, double binWidthFull = 500, double binWidthRed = 5, double binWidth347 = 5, double binWidth844 = 5, double binWidth1809 = 10) {
     /*
         Description
             Plots spectra measured by the detectors using the MWD algorithm. Names the files as

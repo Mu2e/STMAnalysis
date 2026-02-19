@@ -100,6 +100,7 @@ void plot(std::vector<std::vector<double>> capturedMuons, const unsigned long lo
         muonCaptureCount.push_back(nExpectedMuonCaptures);
         muonCaptureUncertainty.push_back(uExpectedMuonCaptures);
     };
+
     if (capturedMuons[0][0] > std::numeric_limits<double>::epsilon()) {
         normalizationSource.push_back("347 keV signal");
         muonCaptureCount.push_back(capturedMuons[0][0]);
@@ -336,6 +337,10 @@ void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<
 
     // Print the title line and rules
     const std::vector<int> signalColumnWidths = {signal347ColumnWidth, signal844ColumnWidth, signal1809ColumnWidth};
+    std::string tableTitle = "Normalized muon capture count per measured signal photon";
+    std::cout << std::endl; // Buffer line
+    std::cout << std::string(fullWidth, '=') << std::endl;
+    std::cout << std::string((fullWidth - tableTitle.size())/2, ' ') << tableTitle << std::endl;
     std::cout << std::string(fullWidth, '-') << std::endl; // Title line
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "Correction factor";
     for (i = 0; i < nOrder; i++)
@@ -372,7 +377,7 @@ void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<
     for (i = 0; i < nOrder; i++)
         std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToString(capturedMuons[i][0], nSF) + " ± " + doubleToString(capturedMuons[i][1], nSF);
     std::cout << std::endl;
-    std::cout << std::string(fullWidth, '-') << std::endl; // End line
+    std::cout << std::string(fullWidth, '=') << std::endl; // End line
     std::cout << std::endl; // Buffer line
 
     // Generate plot if relevant to do so

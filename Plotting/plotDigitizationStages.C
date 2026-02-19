@@ -86,7 +86,7 @@ void collectData(const std::string fileName, const std::string treeName, std::ve
     int entries = tree->GetEntries();
 
     // Collect the data
-    for (int i = 0; i < entries; i++) {
+    for (int i = 1000; i < 2000; i++) {
         // Get the corresponding entry
         tree->GetEntry(i);
 
@@ -154,14 +154,14 @@ void plot(std::vector<double> &chargeCollected, std::vector<double> &chargeDecay
     // Construct the time vector for plotting
     std::vector<double> time;
     const double tADC = 3.125;
-    for (int i = 0; i < N; i++) time.push_back(i * tADC);
+    for (int i = 1000; i < (N+1000); i++) time.push_back(i * tADC);
     double* timeA = time.data();
 
     // Generate the plot for the collected charge
     if (!chargeCollected.empty()) {
         TCanvas* cChargeCollected = new TCanvas("cChargeCollected", "chargeCollected", 800, 600);
-        gPad->SetLeftMargin(0.14);
-        gPad->SetRightMargin(0.02);
+        // gPad->SetLeftMargin(0.14);
+        // gPad->SetRightMargin(0.02);
         TGraph *gChargeCollected = new TGraph(N, timeA, chargeCollectedA);
         gChargeCollected->SetTitle("Charge collected;Time [ns];Charge [e]");
         gChargeCollected->Draw("APL");
@@ -174,8 +174,8 @@ void plot(std::vector<double> &chargeCollected, std::vector<double> &chargeDecay
     // Generate the plot for the decayed charge
     if (!chargeDecayed.empty()) {
         TCanvas* cChargeDecayed = new TCanvas("cChargeDecayed", "chargeDecayed", 800, 600);
-        gPad->SetLeftMargin(0.14);
-        gPad->SetRightMargin(0.02);
+        // gPad->SetLeftMargin(0.14);
+        // gPad->SetRightMargin(0.02);
         TGraph *gChargeDecayed = new TGraph(N, timeA, chargeDecayedA);
         gChargeDecayed->SetTitle("Charge deacyed;Time [ns];Charge [e]");
         gChargeDecayed->Draw("APL");
@@ -188,8 +188,8 @@ void plot(std::vector<double> &chargeCollected, std::vector<double> &chargeDecay
     // Generate the plot for the digitized waveform
     if (!ADCs.empty()) {
         TCanvas* cADCs = new TCanvas("cADCs", "ADCs", 800, 600);
-        gPad->SetLeftMargin(0.12);
-        gPad->SetRightMargin(0.02);
+        // gPad->SetLeftMargin(0.12);
+        // gPad->SetRightMargin(0.02);
         TGraph *gADCs = new TGraph(N, timeA, ADCsA);
         gADCs->SetTitle("Digitized waveform;Time [ns];ADC [arb. unit]");
         gADCs->Draw("APL");

@@ -1,5 +1,5 @@
 // Generates the table of signal photons from the total measured signal spectrum
-// Usage example - $ root -l -q 'SignalFractionTable.C(2082. 0. 21777)'
+// Usage example - $ root -l -q 'SignalFractionTable.C(2082, 0, 21777)'
 // Original author - Pawel Plesniak
 
 void customErrorHandler(int level, Bool_t abort, const char* location, const char* message) {
@@ -105,6 +105,7 @@ void SignalFractionTable(double n347, double n844, double n1809) {
     const int titleWidth = 40, signalWidth = 30, fullWidth = titleWidth + signalWidth * 3;
 
     // Print the table
+    std::cout << std::endl; // Buffer line
     std::string tableTitle = "Signal Photons Summary Table";
     std::cout << std::string(fullWidth, '=') << std::endl;
     std::cout << std::string((fullWidth - tableTitle.size())/2, ' ') << tableTitle << std::endl;
@@ -116,6 +117,7 @@ void SignalFractionTable(double n347, double n844, double n1809) {
     std::cout << std::string(fullWidth, '-') << std::endl;
     std::cout << std::setw(titleWidth) << std::left << "Signal Photons: " << std::setw(signalWidth) << std::left << sig347 << std::setw(signalWidth) << std::left << sig844 << std::setw(signalWidth) << std::left << sig1809 << std::endl;
     std::cout << std::string(fullWidth, '=') << std::endl;
+    std::cout << std::endl; // Buffer line
 
     return;
 };
