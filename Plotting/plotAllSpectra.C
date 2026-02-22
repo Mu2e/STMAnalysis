@@ -613,11 +613,7 @@ void makePlot(std::vector<double> electronEnergies, std::vector<double> electron
 
     // Set up the legend
     TLegend *legend = new TLegend(lx1, ly1, lx2, ly2, "Data");
-    legend->SetHeader("Dataset", "C");
-    legend->AddEntry("Background",  "Background",   "")->SetTextColor(kRed);
-    legend->AddEntry("Signal",      "Signal",       "")->SetTextColor(kBlue);
-    for (TCanvas* c : sCanvases)
-        c->Update();
+    int integ_count = 0;
 
     // Set up the THStacks
     std::vector<THStack*> hStacks;
@@ -641,7 +637,13 @@ void makePlot(std::vector<double> electronEnergies, std::vector<double> electron
         hStacks[i]->SetTitle(sTitles[i].c_str());
         hStacks[i]->SetMinimum(0); // Sets the y minimum
         hStacks[i]->Draw("HIST");
+        legend->SetHeader("Dataset", "C");
+        integ_count = sHists[i][0]->Integral(1, sHists[i][0]->GetNbinsX());
+        legend->AddEntry("Background",  ("Background - " + std::to_string(integ_count)).c_str(),   "")->SetTextColor(kRed);
+        integ_count = sHists[i][1]->Integral(1, sHists[i][1]->GetNbinsX());
+        legend->AddEntry("Signal",      ("Signal - " + std::to_string(integ_count)).c_str(),       "")->SetTextColor(kBlue);
         legend->Draw();
+        sCanvases[i]->Update();
         if (!highResolution) {
             hStacks[i]->GetXaxis()->SetLabelSize(lowResAxisTextSize);
             hStacks[i]->GetXaxis()->SetTitleSize(lowResAxisTextSize);
@@ -649,6 +651,7 @@ void makePlot(std::vector<double> electronEnergies, std::vector<double> electron
             hStacks[i]->GetYaxis()->SetTitleSize(lowResAxisTextSize);
         };
         sCanvases[i]->SaveAs(sFileNames[i].c_str());
+        legend->Clear();
     };
 
     // Cleanup
@@ -767,7 +770,7 @@ void plotVirtualdetector(std::vector<double> &electronEnergies, std::vector<doub
     // for (double plotVirtualdetectorId : plotVirtualdetectorIds)
     //     std::cout << plotVirtualdetectorId << ", ";
     // std::cout << "\n" << std::endl;
-    std::set<ULong64_t> plotVirtualdetectorIds = {88, 89, 90, 101};
+    std::set<ULong64_t> plotVirtualdetectorIds = {90};
 
     // Make a unique list of PDG IDs
     // std::set<int> plotPdgIds(electronPdgIds.begin(), electronPdgIds.end());
