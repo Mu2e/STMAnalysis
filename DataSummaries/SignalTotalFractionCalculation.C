@@ -114,7 +114,7 @@ void SignalTotalFractionCalculation(std::vector<double> signal, std::vector<doub
 
     std::cout << std::setw(titleWidth) << std::left << "Fraction";
     for (size_t i = 0; i < energyStrings.size(); ++i) {
-        std::cout << std::setw(signalWidth) << std::left << doubleToString(signalToTotalRatios[i][0], 3)+ " ± " + doubleToString(signalToTotalRatios[i][1], 3);
+        std::cout << std::setw(signalWidth) << std::left << doubleToString(signalToTotalRatios[i][0], 5)+ " ± " + doubleToString(signalToTotalRatios[i][1], 5);
     };
     std::cout << std::endl;
 

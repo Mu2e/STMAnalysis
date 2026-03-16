@@ -1,4 +1,4 @@
-// Calculates the signal to background ratio in the signal regions
+// Calculates the signal to background ratio in the signal regions directly from the data.
 // Usage example - $ root -l -q 'SignalBackgroundRatio.C({"Stage2/S2EleDet.root"}, {"Stage2/S2MuDet.root", "Stage2/S21809Det.root"}, "Stage2HPGe/ttree", 0.1)'
 // Original author - Pawel Plesniak
 

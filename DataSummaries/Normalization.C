@@ -1,5 +1,5 @@
 // Generates the table of muon captures per incident signal photon and the normalization plot
-// Usage example - $ root -l -q 'CountMuCapPerMeasuredPhoton.C(true, {{2061, 411}, {0, 0}, {3280, 391}}, 2.69e16)'
+// Usage example - $ root -l -q 'Normalization.C(true, {{2061, 411}, {0, 0}, {3280, 391}}, 2.69e16)'
 // Original author - Pawel Plesniak
 
 #include <limits>
@@ -14,15 +14,16 @@ void customErrorHandler(int level, Bool_t abort, const char* location, const cha
         exit(1);
 };
 
-void plot(std::vector<std::vector<double>> capturedMuons, const unsigned long long int nPOTs, bool highResolution) {
+void plot(std::vector<std::vector<double>> capturedMuons, std::vector<double> expectedMuonCaptures, const bool highResolution, const std::string normalization_type) {
     /*
         Description
             Generates the normalization plot. If an entry is null, it is not included in th plot
 
         Arguments
             capturedMuons - as documented in CountMuCapPerMeasuredPhoton
-            nPOTs - as documented in CountMuCapPerMeasuredPhoton
+            expectedMuonCaptures - expected number of captured muons and its uncertainty from the number of POTs
             highResolution - controls whether the plot is generated in low resolution or high resolution
+            normalization_type - type of normalization used in the plot
 
         Variables
             lineWidth - thickness of the normalization estimate lines on the plots
@@ -59,10 +60,10 @@ void plot(std::vector<std::vector<double>> capturedMuons, const unsigned long lo
 
     // Define the plot formatting
     const double lineWidth = 2;
-    std::vector<int> plotColors = {kRed, kBlue, kGreen + 2};
+    std::vector<int> plotColors = {kBlack, kRed, kBlue, kGreen + 2};
     const double errorBoundOpacity = 0.3;
     const std::string plotTitle = "Normalized muon capture count; Captured muon count;";
-    const std::string plotFileName = std::string("MuonCaptures.") + (highResolution ? "high" : "low") + ".png";
+    const std::string plotFileName = std::string("MuonCaptures.") + normalization_type + "." + (highResolution ? "high" : "low") + ".png";
 
     // Set up iterator
     int i = 0;
@@ -86,19 +87,11 @@ void plot(std::vector<std::vector<double>> capturedMuons, const unsigned long lo
     std::vector<double> muonCaptureCount, muonCaptureUncertainty;
     std::vector<std::string> normalizationSource;
     double uncertaintyQuadrature = 0.0;
-    if (nPOTs != 0) {
-        normalizationSource.push_back("POT");
-            // Generate the expected number of muon captures and its uncertainty from the number of POTs
-        const double pMuonStopMDC2020 = 1432535.0 / (2e8 * (4e8 / 869305)); // Based on the MDC2020 workflow
-        const double uMuonStopMDC2020 = std::sqrt(1432535) / (2e8 * (4e8 / 869305)); // Based on the MDC2020 workflow
-        const double pMuonCapture = 0.61;
-        const double uMuonCapture = 0.001;
-        const double nExpectedMuonCaptures = nPOTs * pMuonStopMDC2020 * pMuonCapture;
-        const double uExpectedMuonCaptures = nExpectedMuonCaptures * std::sqrt(std::pow(uMuonStopMDC2020/pMuonStopMDC2020, 2) + std::pow(uMuonCapture/pMuonCapture, 2));
-        std::cout << "Expected number of muon captures from POT count: " << nExpectedMuonCaptures << " ± " << uExpectedMuonCaptures << std::endl;
 
-        muonCaptureCount.push_back(nExpectedMuonCaptures);
-        muonCaptureUncertainty.push_back(uExpectedMuonCaptures);
+    if (expectedMuonCaptures[0] > std::numeric_limits<double>::epsilon()) {
+        normalizationSource.push_back("POT");
+        muonCaptureCount.push_back(expectedMuonCaptures[0]);
+        muonCaptureUncertainty.push_back(expectedMuonCaptures[1]);
     };
 
     if (capturedMuons[0][0] > std::numeric_limits<double>::epsilon()) {
@@ -184,7 +177,7 @@ void plot(std::vector<std::vector<double>> capturedMuons, const unsigned long lo
     return;
 };
 
-std::string doubleToString(double value, int sigFigs) {
+std::string doubleToStringScientific(double value, int sigFigs) {
     /*
         Description
             Converts a double to a string with a defined number of significant figures
@@ -201,7 +194,24 @@ std::string doubleToString(double value, int sigFigs) {
     return out.str();
 };
 
-void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<double>> nSignalPhotons = {{0, 0}, {0, 0}, {0, 0}}, const unsigned long long int nPOTs = 0.0) {
+std::string doubleToStringFixed(double value, int sigFigs) {
+    /*
+        Description
+            Converts a double to a string with a defined number of significant figures
+
+        Arguments
+            value - value to convert to string
+            sigFigs - number of significant figures to use
+
+        Variables
+            out - output string stream used to convert 'value' to a std::string
+    */
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(sigFigs - 1) << value;
+    return out.str();
+};
+
+void Normalization(const std::string normalization_type, std::vector<std::vector<double>> nSignalPhotons = {{0, 0}, {0, 0}, {0, 0}}, const double nPOTs = 2.69e16, bool makePlot = true) {
     /*
         Description
             Generates the table describing the number of measured photons per muon capture, and the table if
@@ -256,50 +266,101 @@ void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<
     // Sanity check
     if (nSignalPhotons.size() != 3)
         Fatal("CountMuCapPerMeasuredPhoton", "Incorrect format of nSignalPhotons, expected as {{n347, u347}, {n844, u844}, {n1809, u1809}}");
-
-    // Define the table formatting
-    const int correctionNameColumnWidth = 40, signal347ColumnWidth = 30, signal844ColumnWidth = 30, signal1809ColumnWidth = 30, fullWidth = correctionNameColumnWidth + signal347ColumnWidth + signal844ColumnWidth + signal1809ColumnWidth;
-    const int nSF = 4;
-
-    // Define the signal order
-    std::vector<std::string> order = {"347", "844", "1809"};
-    const int nOrder = order.size();
+    if (nPOTs <= 0) {
+        std::cerr << "Error: Number of POTs must be positive." << std::endl;
+        return;
+    };
+    std::vector<std::string> normalization_types{"all", "VD90", "VD101", "DetectorMC", "DetectorReco"};
+    if (std::find(normalization_types.begin(), normalization_types.end(), normalization_type) == normalization_types.end()) {
+        std::cout << "Provided normalization type: " << normalization_type << std::endl;
+        std::cerr << "Error: Normalization type must be one of 'all', 'VD90', 'VD101', 'DetectorMC', or 'DetectorReco'." << std::endl;
+        return;
+    };
 
     // Declare iterator variables
     int i = 0, j = 0;
 
+    // Define the signal order
+    std::vector<std::string> order = {"347 keV", "844 keV", "1809 keV"};
+    const int nOrder = order.size();
+
+    // Generate the expected number of muon captures and its uncertainty from the number of POTs
+    // Number of events from POT.fcl
+    const double nMDC2020_POTs = 2e8;
+    const double nMDC2020_MuBeamCat = 869305.0;
+    const double uMDC2020_MuBeamCat = std::sqrt(nMDC2020_MuBeamCat);
+    // Number of events from MuBeamResampler.fcl
+    const double nMDC2020_MuonBeamResampler = 4e9;
+    const double nMDC2020_TargetStopsCat = 1432353.0 * 1000.0; // Factor 1000 is associated with the fact that MuBeamResampler has a prescale of 1000 applied, which is not documented :(
+    const double uMDC2020_TargetStopsCat = 1000.0 * std::sqrt(1432353.0); // Propagate the error correctly
+    // Resampling factors for MuBeamResampler.fcl
+    const double R_MuBeamResampler = nMDC2020_MuonBeamResampler / nMDC2020_MuBeamCat;
+    const double uR_MuBeamResampler = R_MuBeamResampler * uMDC2020_MuBeamCat / (nMDC2020_MuBeamCat * nMDC2020_MuBeamCat);
+    // Number of POTs in sim.mu2e.TargetStopsCat.MDC2020p.art
+    const double nMDC2020_TargetStopsCat_POTs = nMDC2020_POTs * R_MuBeamResampler;
+    const double uMDC2020_TargetStopsCat_POTs = nMDC2020_TargetStopsCat_POTs * uR_MuBeamResampler / R_MuBeamResampler;
+    // Probability of muon stop per POT
+    const double pMDC2020_MuonStop_from_POT = nMDC2020_TargetStopsCat / nMDC2020_TargetStopsCat_POTs;
+    const double uMDC2020_MuonStop_from_POT = pMDC2020_MuonStop_from_POT * std::sqrt(std::pow(uMDC2020_TargetStopsCat / nMDC2020_TargetStopsCat, 2) + std::pow(uMDC2020_TargetStopsCat_POTs / nMDC2020_TargetStopsCat_POTs, 2));
+    // Probability of muon capture given a muon stop
+    const double pMuonCapture = 0.61;
+    const double uMuonCapture = 0.001;
+    // Probability of muon capture per POT
+    const double pMDC2020_MuonCapture_from_POT = pMDC2020_MuonStop_from_POT * pMuonCapture;
+    const double uMDC2020_MuonCapture_from_POT = pMDC2020_MuonCapture_from_POT * std::sqrt(std::pow(uMDC2020_MuonStop_from_POT / pMDC2020_MuonStop_from_POT, 2) + std::pow(uMuonCapture / pMuonCapture, 2));
+    // Expected number of captured muons in the simulation
+    const double nExpectedMuonCaptures = nPOTs * pMDC2020_MuonCapture_from_POT;
+    const double uExpectedMuonCaptures = nExpectedMuonCaptures * (uMDC2020_MuonCapture_from_POT / pMDC2020_MuonCapture_from_POT);
+    // Construct the same format as the other parameters for easier plotting
+    const std::vector<double> normalizationFromPOT = {nExpectedMuonCaptures, uExpectedMuonCaptures};
+
     // Define the parameters that contribute to the number of measured signal photons per muon capture, defined as {value, uncertainty} for each signal photon
+
+    // Define the correction factors and their associated uncertianties
+    //                                                          347 corr    uncert      844 corr    uncert      1809 corr   uncert
+    std::vector<std::vector<double>> pFinalState            = {{1.31,       0.013},    {0.093,      0.007},     {0.51,      0.05}       };
+    std::vector<std::vector<double>> geantRateCorrection    = {{1.0,        0},        {2.590e-1,   0},         {1.0,       0}          };
+    std::vector<std::vector<double>> geometricAcceptance    = {{3.25e-9,    0},        {3.25e-9,    0},         {3.25e-9,   0}          };
+    std::vector<std::vector<double>> pathAttenuation        = {{1,          0},        {1,          0},         {1,         0}          };
+    std::vector<std::vector<double>> absorberAcceptance     = {{0.87,       0},        {1,          0},         {1,         0}          };
+    std::vector<std::vector<double>> energyWindowAcceptance = {{0.67,       0},        {1,          0},         {1,         0}          };
+    std::vector<std::vector<double>> timeCutAcceptance      = {{0.9976,     0},        {0.6298,     0},         {0.68,      0}          };
+    std::vector<std::vector<double>> detectorAcceptance     = {{0.628,      1.528e-4}, {0.288,      1.432e-4},  {0.179,     1.212e-4}   };
+    std::vector<std::vector<double>> clippingFactor         = {{0.85,       0},        {1,          0},         {0.85,      0}          };
+
+    // Store all the correction factors in a single variable
+    std::vector<std::vector<std::vector<double>>> correctionFactors = {pFinalState, geantRateCorrection, geometricAcceptance, pathAttenuation, absorberAcceptance, energyWindowAcceptance, timeCutAcceptance};
+
+    // Define the names of the correction factors and store all the correction factors in a single variable for easier iteration when applying the correction factors and printing the table
+    // This contains the names of all the relevant correction factors for all the normalization types, if others are needed they are appended
     std::vector<std::string> correctionFactorNames = {
         "Probability of final state",
-        "Absorber acceptance",
-        "Detector acceptance",
-        "Path attenuation",
         "GEANT rate correction",
-        "Energy window acceptance",
-        "Clipping factor",
         "Geometric acceptance",
+        "Path attenuation",
+        "Absorber acceptance",
+        "Energy window acceptance",
         "Time cut acceptance"
     };
 
-    // Define the correction factors and their associated uncertianties
+    // If the normalization is at the detector using MC truth, we need to include the detector acceptance correction factor
+    // If the normalization is at the detector using reconstructed data, we need to include both the detector acceptance and clipping factor correction factors
+
+    if (normalization_type != "VD90") {
+        correctionFactors.push_back(detectorAcceptance);
+        correctionFactorNames.push_back("Detector acceptance");
+        if (normalization_type == "DetectorReco") {
+            correctionFactors.push_back(clippingFactor);
+            correctionFactorNames.push_back("Clipping factor");
+        };
+    }
+    else
+        geometricAcceptance    = {{7.74e-6,    0},        {7.74e-6,    0},         {7.74e-6,   0}          };
     const int nCorrectionFactors = correctionFactorNames.size();
-    //                                                          347 corr    uncert      844 corr    uncert      1809 corr   uncert
-    std::vector<std::vector<double>> pFinalState            = {{1.31,       0.013},    {0.093,      0.007},     {0.51,      0.05}       };
-    std::vector<std::vector<double>> absorberAcceptance     = {{0.87,       0},        {1,          0},         {1,         0}          };
-    std::vector<std::vector<double>> detectorAcceptance     = {{0.628,      1.528e-4}, {0.288,      1.432e-4},  {0.179,     1.212e-4}   };
-    std::vector<std::vector<double>> pathAttenuation        = {{1,          0},        {1,          0},         {1,         0}          };
-    std::vector<std::vector<double>> geantRateCorrection    = {{1,          0},        {0.259,      0},         {1.0,       0}          };
-    std::vector<std::vector<double>> signalInEnergyWindow   = {{0.67,       0},        {1,          0},         {1,         0}          };
-    std::vector<std::vector<double>> clippingFactor         = {{0.85,       0},        {1,          0},         {0.85,      0}          };
-    std::vector<std::vector<double>> geometricAcceptance    = {{3.25e-9,    0},        {3.25e-9,    0},         {3.25e-9,   0}          };
-    std::vector<std::vector<double>> timeCutAcceptance      = {{0.9976,     0},        {0.6298,     0},         {0.68,      0}          };
 
     // Construct the variable to store the number of photons per muon capture and its uncertainty
     //                                                                  347 uncert  844     uncert  1809    uncert
     std::vector<std::vector<double>> measuredPhotonPerMuonCapture   = {{1,  0},     {1,     0},     {1,     0}};
-
-    // Store all the correction factors in a single variable
-    std::vector<std::vector<std::vector<double>>> correctionFactors = {pFinalState, absorberAcceptance, detectorAcceptance, pathAttenuation, geantRateCorrection, signalInEnergyWindow, clippingFactor, geometricAcceptance, timeCutAcceptance};
 
     // Incorporate the effect of the correction factors into the number of measured photons per muon capture
     for (std::vector<std::vector<double>> correctionFactor : correctionFactors) {
@@ -326,25 +387,56 @@ void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<
     };
 
     // Determine the normalization
-    std::vector<std::vector<double>> capturedMuons = {{0, 0}, {0, 0}, {0, 0}};
+    std::vector<std::vector<double>> normalizationFromSignalPhotons = {{0, 0}, {0, 0}, {0, 0}};
     for (i = 0; i < nOrder; i++) {
-        capturedMuons[i][0] = nSignalPhotons[i][0] * muonCapturePerSignalPhoton[i][0];
+        normalizationFromSignalPhotons[i][0] = nSignalPhotons[i][0] * muonCapturePerSignalPhoton[i][0];
         if (nSignalPhotons[i][0] < std::numeric_limits<double>::epsilon() || muonCapturePerSignalPhoton[i][0] < std::numeric_limits<double>::epsilon())
-            capturedMuons[i][1] = 0.0;
+            normalizationFromSignalPhotons[i][1] = 0.0;
         else
-            capturedMuons[i][1] = capturedMuons[i][0] * std::sqrt(std::pow(nSignalPhotons[i][1]/nSignalPhotons[i][0], 2) + std::pow(muonCapturePerSignalPhoton[i][1]/muonCapturePerSignalPhoton[i][0], 2));
+            normalizationFromSignalPhotons[i][1] = normalizationFromSignalPhotons[i][0] * std::sqrt(std::pow(nSignalPhotons[i][1]/nSignalPhotons[i][0], 2) + std::pow(muonCapturePerSignalPhoton[i][1]/muonCapturePerSignalPhoton[i][0], 2));
     };
+
+    // Determine the expected number of signal photons from the number of POTs and the expected number of captured muons from POTs
+    std::vector<std::vector<double>> expectedPhotonCountFromPOT = {{0, 0}, {0, 0}, {0, 0}};
+    for (i = 0; i < nOrder; i++) {
+        expectedPhotonCountFromPOT[i][0] = nExpectedMuonCaptures * measuredPhotonPerMuonCapture[i][0];
+        if (nExpectedMuonCaptures < std::numeric_limits<double>::epsilon() || measuredPhotonPerMuonCapture[i][0] < std::numeric_limits<double>::epsilon())
+            expectedPhotonCountFromPOT[i][1] = 0.0;
+        else
+            expectedPhotonCountFromPOT[i][1] = expectedPhotonCountFromPOT[i][0] * std::sqrt(std::pow(nExpectedMuonCaptures/nExpectedMuonCaptures, 2) + std::pow(measuredPhotonPerMuonCapture[i][1]/measuredPhotonPerMuonCapture[i][0], 2));
+    };
+
+    // Determine the ratio of the expected number of signal photons from POTs to the determined number of signal photons from the measured signal photons
+    std::vector<std::vector<double>> measuredToExpectedNormalizationRatio = {{0, 0}, {0, 0}, {0, 0}};
+    for (i = 0; i < nOrder; i++) {
+        measuredToExpectedNormalizationRatio[i][0] = nSignalPhotons[i][0] / expectedPhotonCountFromPOT[i][0];
+        if (expectedPhotonCountFromPOT[i][0] < std::numeric_limits<double>::epsilon() || nSignalPhotons[i][0] < std::numeric_limits<double>::epsilon())
+            measuredToExpectedNormalizationRatio[i][1] = 0.0;
+        else 
+            measuredToExpectedNormalizationRatio[i][1] = measuredToExpectedNormalizationRatio[i][0] * std::sqrt(std::pow(expectedPhotonCountFromPOT[i][1]/expectedPhotonCountFromPOT[i][0], 2) + std::pow(nSignalPhotons[i][1]/nSignalPhotons[i][0], 2));
+    };
+
+    // Define the table formatting
+    const int correctionNameColumnWidth = 40, signal347ColumnWidth = 30, signal844ColumnWidth = 30, signal1809ColumnWidth = 30, fullWidth = correctionNameColumnWidth + signal347ColumnWidth + signal844ColumnWidth + signal1809ColumnWidth;
+    const int nSF = 4;
 
     // Print the title line and rules
     const std::vector<int> signalColumnWidths = {signal347ColumnWidth, signal844ColumnWidth, signal1809ColumnWidth};
     std::string tableTitle = "Normalized muon capture count per measured signal photon";
+    if (normalization_type == "VD90")
+        tableTitle += " at VD90";
+    else if (normalization_type == "DetectorMC")
+        tableTitle += " at the detector using MC truth";
+    else if (normalization_type == "DetectorReco")
+        tableTitle += " at the detector using reconstructed data";
+
     std::cout << std::endl; // Buffer line
     std::cout << std::string(fullWidth, '=') << std::endl;
     std::cout << std::string((fullWidth - tableTitle.size())/2, ' ') << tableTitle << std::endl;
     std::cout << std::string(fullWidth, '-') << std::endl; // Title line
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "Correction factor";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << order[i] + " keV";
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << order[i];
     std::cout << std::endl;
     std::cout << std::string(fullWidth, '-') << std::endl; // Section line
 
@@ -352,7 +444,7 @@ void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<
     for (i = 0; i < nCorrectionFactors; i++) {
         std::cout << std::setw(correctionNameColumnWidth) << std::left << correctionFactorNames[i];
         for (j = 0; j < nOrder; j++)
-            std::cout << std::setw(signalColumnWidths[j]) << std::left << doubleToString(correctionFactors[i][j][0], nSF) + " ± " + doubleToString(correctionFactors[i][j][1], nSF);
+            std::cout << std::setw(signalColumnWidths[j]) << std::left << doubleToStringScientific(correctionFactors[i][j][0], nSF) + " ± " + doubleToStringScientific(correctionFactors[i][j][1], nSF);
         std::cout << std::endl;
     };
     std::cout << std::string(fullWidth, '-') << std::endl; // Section line
@@ -360,22 +452,30 @@ void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<
     // Print the normalized quantities and bottom rule
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "N signal photons per captured muon";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToString(measuredPhotonPerMuonCapture[i][0], nSF) + " ± " + doubleToString(measuredPhotonPerMuonCapture[i][1], nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(measuredPhotonPerMuonCapture[i][0], nSF) + " ± " + doubleToStringScientific(measuredPhotonPerMuonCapture[i][1], nSF);
     std::cout << std::endl;
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "N captured muons per signal photon";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToString(muonCapturePerSignalPhoton[i][0], nSF) + " ± " + doubleToString(muonCapturePerSignalPhoton[i][1], nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(muonCapturePerSignalPhoton[i][0], nSF) + " ± " + doubleToStringScientific(muonCapturePerSignalPhoton[i][1], nSF);
     std::cout << std::endl;
     std::cout << std::string(fullWidth, '-') << std::endl; // End line
 
     // Print the normalization estimate
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "Measured signal photons";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToString(nSignalPhotons[i][0], nSF) + " ± " + doubleToString(nSignalPhotons[i][1], nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringFixed(nSignalPhotons[i][0], nSF) + " ± " + doubleToStringFixed(nSignalPhotons[i][1], nSF);
     std::cout << std::endl;
-    std::cout << std::setw(correctionNameColumnWidth) << std::left << "N captured muons";
+    std::cout << std::setw(correctionNameColumnWidth) << std::left << "Expected signal photons";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToString(capturedMuons[i][0], nSF) + " ± " + doubleToString(capturedMuons[i][1], nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringFixed(expectedPhotonCountFromPOT[i][0], nSF) + " ± " + doubleToStringFixed(expectedPhotonCountFromPOT[i][1], nSF);
+    std::cout << std::endl;
+    std::cout << std::setw(correctionNameColumnWidth) << std::left << "Measured to expected ratio";
+    for (i = 0; i < nOrder; i++)
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringFixed(measuredToExpectedNormalizationRatio[i][0], nSF) + " ± " + doubleToStringFixed(measuredToExpectedNormalizationRatio[i][1], nSF);
+    std::cout << std::endl;
+    std::cout << std::setw(correctionNameColumnWidth) << std::left << "Normalized captured muons";
+    for (i = 0; i < nOrder; i++)
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(normalizationFromSignalPhotons[i][0], nSF) + " ± " + doubleToStringScientific(normalizationFromSignalPhotons[i][1], nSF);
     std::cout << std::endl;
     std::cout << std::string(fullWidth, '=') << std::endl; // End line
     std::cout << std::endl; // Buffer line
@@ -388,7 +488,7 @@ void CountMuCapPerMeasuredPhoton(bool makePlot = false, std::vector<std::vector<
         // Generate the plots
         std::vector<bool> boolValues = {true, false};
         for (bool highResolution : boolValues)
-            plot(capturedMuons, nPOTs, highResolution);
+            plot(normalizationFromSignalPhotons, normalizationFromPOT, highResolution, normalization_type);
     };
 
     return;

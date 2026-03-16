@@ -1,5 +1,5 @@
 // Generates spectra of data generated from STM MC method, see doc db 51487 for more information
-// Usage example - $ root -q 'plotAllSpectra.C({"Stage1/S1EleVD.root"},  {"Stage1/S1MuVD.root", "Stage1/S1Mu3VD.root", "Stage1/S11809VD.root"}, "Stage1virtualdetector/ttree", "virtualdetector", 42)'
+// Usage example - $ root -q 'plotVirtualDetectorSpectra.C({"Stage1/S1EleVD.root"},  {"Stage1/S1MuVD.root", "Stage1/S1Mu3VD.root", "Stage1/S11809VD.root"}, "Stage1virtualdetector/ttree", "virtualdetector", 42)'
 // Note - it is recommended to run this on mu2ebuild02 as it takes a LOT of memory to run this macro
 // Original author: Pawel Plesniak
 
@@ -638,10 +638,10 @@ void makePlot(std::vector<double> electronEnergies, std::vector<double> electron
         hStacks[i]->SetMinimum(0); // Sets the y minimum
         hStacks[i]->Draw("HIST");
         legend->SetHeader("Dataset", "C");
-        integ_count = sHists[i][0]->Integral(1, sHists[i][0]->GetNbinsX());
-        legend->AddEntry("Background",  ("Background - " + std::to_string(integ_count)).c_str(),   "")->SetTextColor(kRed);
         integ_count = sHists[i][1]->Integral(1, sHists[i][1]->GetNbinsX());
         legend->AddEntry("Signal",      ("Signal - " + std::to_string(integ_count)).c_str(),       "")->SetTextColor(kBlue);
+        integ_count = sHists[i][0]->Integral(1, sHists[i][0]->GetNbinsX());
+        legend->AddEntry("Background",  ("Background - " + std::to_string(integ_count)).c_str(),   "")->SetTextColor(kRed);
         legend->Draw();
         sCanvases[i]->Update();
         if (!highResolution) {
@@ -709,15 +709,17 @@ void makePlots(std::vector<double> &electronEnergies, std::vector<double> &elect
         scaleFactors.emplace_back(scaleFactor);
 
     // Call the plotting function
-    for (bool convertMeVTokeV : boolValues) {
-        for (double scale : scaleFactors) {
-            for (bool highRes : boolValues) {
-                makePlot(electronEnergies, electronTimes, muonEnergies, muonTimes, shiftEMin, eRed, binWidthFull, binWidthRed, binWidth347, binWidth844, binWidth1809, signalAcceptance, scale, highRes,  false, false, convertMeVTokeV, title, particleName);
-                makePlot(electronEnergies, electronTimes, muonEnergies, muonTimes, shiftEMin, eRed, binWidthFull, binWidthRed, binWidth347, binWidth844, binWidth1809, signalAcceptance, scale, highRes,  true,  false, convertMeVTokeV, title, particleName);
-                makePlot(electronEnergies, electronTimes, muonEnergies, muonTimes, shiftEMin, eRed, binWidthFull, binWidthRed, binWidth347, binWidth844, binWidth1809, signalAcceptance, scale, highRes,  true,  true , convertMeVTokeV, title, particleName);
-            };
-        };
-    };
+    makePlot(electronEnergies, electronTimes, muonEnergies, muonTimes, shiftEMin, eRed, binWidthFull, binWidthRed, binWidth347, binWidth844, binWidth1809, signalAcceptance, 42.0, false,  true, false, false, title, particleName);
+
+    // for (bool convertMeVTokeV : boolValues) {
+    //     for (double scale : scaleFactors) {
+    //         for (bool highRes : boolValues) {
+    //             makePlot(electronEnergies, electronTimes, muonEnergies, muonTimes, shiftEMin, eRed, binWidthFull, binWidthRed, binWidth347, binWidth844, binWidth1809, signalAcceptance, scale, highRes,  false, false, convertMeVTokeV, title, particleName);
+    //             makePlot(electronEnergies, electronTimes, muonEnergies, muonTimes, shiftEMin, eRed, binWidthFull, binWidthRed, binWidth347, binWidth844, binWidth1809, signalAcceptance, scale, highRes,  true,  false, convertMeVTokeV, title, particleName);
+    //             makePlot(electronEnergies, electronTimes, muonEnergies, muonTimes, shiftEMin, eRed, binWidthFull, binWidthRed, binWidth347, binWidth844, binWidth1809, signalAcceptance, scale, highRes,  true,  true , convertMeVTokeV, title, particleName);
+    //         };
+    //     };
+    // };
 
     return;
 };
@@ -770,7 +772,7 @@ void plotVirtualdetector(std::vector<double> &electronEnergies, std::vector<doub
     // for (double plotVirtualdetectorId : plotVirtualdetectorIds)
     //     std::cout << plotVirtualdetectorId << ", ";
     // std::cout << "\n" << std::endl;
-    std::set<ULong64_t> plotVirtualdetectorIds = {90};
+    std::set<ULong64_t> plotVirtualdetectorIds = {101};
 
     // Make a unique list of PDG IDs
     // std::set<int> plotPdgIds(electronPdgIds.begin(), electronPdgIds.end());
@@ -817,6 +819,7 @@ void plotVirtualdetector(std::vector<double> &electronEnergies, std::vector<doub
             plotElectronTimes.clear();
             plotMuonEnergies.clear();
             plotMuonTimes.clear();
+            return;
         };
     };
     return;
@@ -846,7 +849,7 @@ void plotDetector(std::vector<double> &electronEnergies, std::vector<double> &el
     return;
 };
 
-void plotAllSpectra(const std::vector<std::string> electronFileNames, const std::vector<std::string> muonFileNames, const std::string treeName, const std::string virtualdetectorOrDetectorName, const double scaleFactor = 1, const double signalAcceptance = 0.1, double eRed = 2.0, double binWidthFull = 0.5, double binWidthRed = 0.01, double binWidth347 = 0.005, double binWidth844 = 0.005, double binWidth1809  = 0.01) {
+void plotVirtualDetectorSpectra(const std::vector<std::string> electronFileNames, const std::vector<std::string> muonFileNames, const std::string treeName, const std::string virtualdetectorOrDetectorName, const double scaleFactor = 1, const double signalAcceptance = 0.1, double eRed = 2.0, double binWidthFull = 0.5, double binWidthRed = 0.01, double binWidth347 = 0.005, double binWidth844 = 0.005, double binWidth1809  = 0.01) {
     /*
         Description
             Plots the spectra from STM simulation campaigns for electrons, positrons, photons, and neutrons. For other particles, the associated PDG IDs and particle names need to be added to the vectors plotPdgIds and plotParticleNames

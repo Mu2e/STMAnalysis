@@ -54,14 +54,14 @@ void SignalFractionTable(double n347, double n844, double n1809) {
 
 
     // Define the signal to total ratios
-    const double st347  = 0.2712;
-    const double st844  = 0.6987;
-    const double st1809 = 0.6032;
+    const double st347  = 0.3333;
+    const double st844  = 0.8684;
+    const double st1809 = 0.5156;
 
     // Define the signal to total ratio uncertainties
-    const double ust347  = 0.0541;
-    const double ust844  = 0.2064;
-    const double ust1809 = 0.0715;
+    const double ust347  = 0.0821;
+    const double ust844  = 0.2066;
+    const double ust1809 = 0.0589;
 
     // Determine the normalized signal to total ratio uncertainties
     const double ufst347  = ust347  / st347;

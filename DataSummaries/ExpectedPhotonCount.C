@@ -1,5 +1,5 @@
-// Calculates the expected number of signal photons assuming the MC truth normalizations are correct. The expected number of signal photons is calculated from the probability of final state for each signal photon energy, and the number of POTs simulated including resampling. 
-// Usage example - $ root -l -q 'ExpectedPhotonCount.C({{1.679e10, 3.02e9}, {0.0, 0.0}, {1.583e11, 2.28e10}}, {{4.275e11, 8.56e10}, {0.0, 0.0}, {7.660e13, 1.180e13}})'
+// Calculates the expected number of signal photons assuming the correction factors are correct. The expected number of signal photons is calculated from the probability of final state for each signal photon energy, and the number of POTs simulated including resampling. 
+// Usage example - $ root -l -q 'ExpectedPhotonCount.C'
 // Original author - Pawel Plesniak
 
 
@@ -82,12 +82,17 @@ void tabulate(const double nPOTs, const std::string location, bool &printSummary
     // Define the correction factors and their associated uncertianties
     //                                                          347 corr    uncert      844 corr    uncert      1809 corr   uncert
     std::vector<std::vector<double>> geometricAcceptance    = {{3.25e-9,    0},        {3.25e-9,    0},         {3.25e-9,   0}          };
-    std::vector<std::vector<double>> pathAttenuation        = {{1,          0},        {1,          0},         {1,         0}          };
-    std::vector<std::vector<double>> absorberAcceptance     = {{0.87,       0},        {1,          0},         {1,         0}          };
+    std::vector<std::vector<double>> pathAttenuation        = {{0.774,      0.008},    {0.763,      0.018},     {0.777,     0.012}      };
+    std::vector<std::vector<double>> absorberAcceptance     = {{0.634,      0.033},    {0.835,      0.025},     {0.952,     0.048}      };
     std::vector<std::vector<double>> energyWindowAcceptance = {{0.67,       0},        {1,          0},         {1,         0}          };
     std::vector<std::vector<double>> timeCutAcceptance      = {{0.9976,     0},        {0.6298,     0},         {0.68,      0}          };
     std::vector<std::vector<double>> detectorAcceptance     = {{0.628,      1.528e-4}, {0.288,      1.432e-4},  {0.179,     1.212e-4}   };
     std::vector<std::vector<double>> clippingFactor         = {{0.85,       0},        {1,          0},         {0.85,      0}          };
+
+    // Correct the normalization if normalizing against VD101
+    if (location == "VD101") {
+        geometricAcceptance    = {{7.74e-6,    0},        {7.74e-6,    0},         {7.74e-6,   0}          };
+    };
 
     // Store all the correction factors in a single variable
     std::vector<std::vector<std::vector<double>>> correctionFactors = {geometricAcceptance, pathAttenuation, absorberAcceptance, energyWindowAcceptance, timeCutAcceptance};
@@ -105,7 +110,7 @@ void tabulate(const double nPOTs, const std::string location, bool &printSummary
     // If the normalization is at the detector using MC truth, we need to include the detector acceptance correction factor
     // If the normalization is at the detector using reconstructed data, we need to include both the detector acceptance and clipping factor correction factors
 
-    if (location != "VD90") {
+    if ((location == "DetectorMC") || (location == "DetectorReco")) {
         correctionFactors.push_back(detectorAcceptance);
         correctionFactorNames.push_back("Detector acceptance");
         if (location == "DetectorReco") {
@@ -124,11 +129,11 @@ void tabulate(const double nPOTs, const std::string location, bool &printSummary
     const double uMDC2020_MuBeamCat = std::sqrt(nMDC2020_MuBeamCat);
     // Number of events from MuBeamResampler.fcl
     const double nMDC2020_MuonBeamResampler = 4e9;
-    const double nMDC2020_TargetStopsCat = 1432353.0;
-    const double uMDC2020_TargetStopsCat = std::sqrt(nMDC2020_TargetStopsCat);
+    const double nMDC2020_TargetStopsCat = 1432353.0 * 1000.0; // Factor 1000 is associated with the fact that MuBeamResampler has a prescale of 1000 applied, which is not documented :(
+    const double uMDC2020_TargetStopsCat = 1000.0 * std::sqrt(1432353.0 ); // Propagate the error correctly
     // Resampling factors for MuBeamResampler.fcl
     const double R_MuBeamResampler = nMDC2020_MuonBeamResampler / nMDC2020_MuBeamCat;
-    const double uR_MuBeamResampler = R_MuBeamResampler * uMDC2020_MuBeamCat / (nMDC2020_MuBeamCat * nMDC2020_MuBeamCat);
+    const double uR_MuBeamResampler = R_MuBeamResampler * (uMDC2020_MuBeamCat / nMDC2020_MuBeamCat);
     // Number of POTs in sim.mu2e.TargetStopsCat.MDC2020p.art
     const double nMDC2020_TargetStopsCat_POTs = nMDC2020_POTs * R_MuBeamResampler;
     const double uMDC2020_TargetStopsCat_POTs = nMDC2020_TargetStopsCat_POTs * uR_MuBeamResampler / R_MuBeamResampler;
@@ -146,8 +151,8 @@ void tabulate(const double nPOTs, const std::string location, bool &printSummary
     const double uExpectedMuonCaptures = nExpectedMuonCaptures * (uMDC2020_MuonCapture_from_POT / pMDC2020_MuonCapture_from_POT);
     // Print summary information
     if (printSummary) {
-        std::cout << "Probability of a POT producing a stopped muon: " << pMDC2020_MuonStop_from_POT << " ± " << uMDC2020_MuonStop_from_POT << std::endl;
-        std::cout << "Probability of a POT producing a captured muon: " << pMDC2020_MuonCapture_from_POT << " ± " << uMDC2020_MuonCapture_from_POT << std::endl;
+        std::cout << "Probability of a POT producing a stopped muon: " << pMDC2020_MuonStop_from_POT << " +/- " << uMDC2020_MuonStop_from_POT << std::endl;
+        std::cout << "Probability of a POT producing a captured muon: " << pMDC2020_MuonCapture_from_POT << " +/- " << uMDC2020_MuonCapture_from_POT << std::endl;
         printSummary = false; // Set to false so that the summary information is only printed once if all three normalizations are printed
     }
 
@@ -211,17 +216,22 @@ void tabulate(const double nPOTs, const std::string location, bool &printSummary
     // Print the expected number of signal photons per muon capture and the number of POTs simulated including resampling, and the number of expected muon captures in the simulation, and the middle rule
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "nPOTs";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(nPOTs, nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(nPOTs, nSF); // Note the drift in the columns is due to C++ being wierd with +/- 
     std::cout << std::endl;
 
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "nCapturedMuons";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(nExpectedMuonCaptures, nSF) + " ± " + doubleToStringScientific(uExpectedMuonCaptures, nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(nExpectedMuonCaptures, nSF) + " +/- " + doubleToStringScientific(uExpectedMuonCaptures, nSF);
+    std::cout << std::endl;
+
+    std::cout << std::setw(correctionNameColumnWidth) << std::left << "Signal photon probability";
+    for (i = 0; i < nOrder; i++)
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringFixed(pFinalState[i][0], nSF) + " +/- " + doubleToStringFixed(pFinalState[i][1], nSF);
     std::cout << std::endl;
 
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "Expected generated signal photons";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(expectation[i][0], nSF) + " ± " + doubleToStringScientific(expectation[i][1], nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(expectation[i][0], nSF) + " +/- " + doubleToStringScientific(expectation[i][1], nSF);
     std::cout << std::endl;
 
     std::cout << std::string(fullWidth, '-') << std::endl; // Section line
@@ -231,11 +241,11 @@ void tabulate(const double nPOTs, const std::string location, bool &printSummary
         std::cout << std::setw(correctionNameColumnWidth) << std::left << correctionFactorNames[i];
         if (correctionFactorNames[i] == "Geometric acceptance") {
             for (j = 0; j < nOrder; j++)
-                std::cout << std::setw(signalColumnWidths[j]) << std::left << doubleToStringScientific(correctionFactors[i][j][0], 3) + " ± " + doubleToStringScientific(correctionFactors[i][j][1], 3);
+                std::cout << std::setw(signalColumnWidths[j]) << std::left << doubleToStringScientific(correctionFactors[i][j][0], 3) + " +/- " + doubleToStringScientific(correctionFactors[i][j][1], 3);
         }
         else {
             for (j = 0; j < nOrder; j++)
-                std::cout << std::setw(signalColumnWidths[j]) << std::left << doubleToStringFixed(correctionFactors[i][j][0], nSF) + " ± " + doubleToStringFixed(correctionFactors[i][j][1], nSF);
+                std::cout << std::setw(signalColumnWidths[j]) << std::left << doubleToStringFixed(correctionFactors[i][j][0], nSF) + " +/- " + doubleToStringFixed(correctionFactors[i][j][1], nSF);
         }
         std::cout << std::endl;
         if (correctionFactorNames[i] == "Time cut acceptance")
@@ -246,7 +256,7 @@ void tabulate(const double nPOTs, const std::string location, bool &printSummary
     // Print the normalized quantities and bottom rule
     std::cout << std::setw(correctionNameColumnWidth) << std::left << "Expected signal photons";
     for (i = 0; i < nOrder; i++)
-        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringScientific(signalPhotonCount[i][0], nSF) + " ± " + doubleToStringScientific(signalPhotonCount[i][1], nSF);
+        std::cout << std::setw(signalColumnWidths[i]) << std::left << doubleToStringFixed(signalPhotonCount[i][0], nSF) + " +/- " + doubleToStringFixed(signalPhotonCount[i][1], nSF);
     std::cout << std::endl;
     std::cout << std::string(fullWidth, '=') << std::endl; // End line
     std::cout << std::endl; // Buffer line
@@ -259,7 +269,7 @@ void ExpectedPhotonCount(const double nPOTs = 2.69e16, const std::string locatio
 
         Arguments
             nPOTs - number of Protons on Target simulated including resampling
-            location - location of the normalization. One of "all", "VD90", "DetectorMC", or "DetectorReco"
+            location - location of the normalization. One of "all", "VD101", "VD90", "DetectorMC", or "DetectorReco"
             printSummary - whether to print the summary information about the expected number of captured muons in the simulation
 
         Variables
@@ -283,10 +293,10 @@ void ExpectedPhotonCount(const double nPOTs = 2.69e16, const std::string locatio
         std::cerr << "Error: Number of POTs must be positive." << std::endl;
         return;
     };
-    std::vector<std::string> locationNames{"all", "VD90", "DetectorMC", "DetectorReco"};
+    std::vector<std::string> locationNames{"all", "VD101", "VD90", "DetectorMC", "DetectorReco"};
     if (std::find(locationNames.begin(), locationNames.end(), location) == locationNames.end()) {
         std::cout << "Provided location: " << location << std::endl;
-        std::cerr << "Error: Location must be one of 'all', 'VD90', 'DetectorMC', or 'DetectorReco'." << std::endl;
+        std::cerr << "Error: Location must be one of 'all', 'VD101', 'VD90', 'DetectorMC', or 'DetectorReco'." << std::endl;
         return;
     };
 
@@ -294,7 +304,7 @@ void ExpectedPhotonCount(const double nPOTs = 2.69e16, const std::string locatio
 
     // Generate the table
     if (location == "all") {
-        std::vector<std::string> allLocationNames{"VD90", "DetectorMC", "DetectorReco"};
+        std::vector<std::string> allLocationNames{"VD101", "VD90", "DetectorMC", "DetectorReco"};
         for (const std::string& locationName : allLocationNames) {
             std::cout << "Normalization location: " << locationName << std::endl;
             tabulate(nPOTs, locationName, summaryPrinted);
