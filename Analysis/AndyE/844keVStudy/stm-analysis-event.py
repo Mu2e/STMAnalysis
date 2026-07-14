@@ -29,7 +29,8 @@ ge_eff = 0.30
 I_1809 = 0.51
 lifetime_1809 = 864e-9 # s
 I_844 = 0.13*0.718
-lifetime_844 = 9.5*60 # s
+half_life_844 = 9.5*60 # s
+lifetime_844 = half_life_844 / np.log(2) # log = natural log
 
 def plot_time_lines(ax):
     ypos = (ax.get_ylim()[1]-ax.get_ylim()[0])/2
